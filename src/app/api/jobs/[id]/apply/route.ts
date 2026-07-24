@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 
@@ -24,8 +25,21 @@ export async function POST(
     );
   }
   const { message } = await req.json().catch(() => ({ message: null }));
-  const application = await prisma.application.create({
-    data: { jobId: job.id, userId: user.id, message: message || null },
-  });
-  return NextResponse.json({ application });
+  try {
+    const application = await prisma.application.create({
+      data: { jobId: job.id, userId: user.id, message: message || null },
+    });
+    return NextResponse.json({ application });
+  } catch (e) {
+    if (
+      e instanceof Prisma.PrismaClientKnownRequestError &&
+      e.code === "P2002"
+    ) {
+      return NextResponse.json(
+        { error: "لقد تقدمت لهذه الوظيفة من قبل" },
+        { status: 409 }
+      );
+    }
+    throw e;
+  }
 }

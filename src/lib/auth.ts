@@ -2,7 +2,16 @@ import { cookies } from "next/headers";
 import jwt from "jsonwebtoken";
 import { prisma } from "./prisma";
 
-const JWT_SECRET = process.env.JWT_SECRET || "dev-secret-change-me";
+function getJwtSecret(): string {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error("JWT_SECRET environment variable must be set in production");
+    }
+    return "dev-secret-change-me";
+  }
+  return secret;
+}
 const COOKIE_NAME = "jia_token";
 
 export interface TokenPayload {
@@ -10,7 +19,7 @@ export interface TokenPayload {
 }
 
 export function signToken(userId: string): string {
-  return jwt.sign({ userId } satisfies TokenPayload, JWT_SECRET, {
+  return jwt.sign({ userId } satisfies TokenPayload, getJwtSecret(), {
     expiresIn: "7d",
   });
 }
@@ -33,7 +42,7 @@ export async function getCurrentUser() {
   const token = cookies().get(COOKIE_NAME)?.value;
   if (!token) return null;
   try {
-    const payload = jwt.verify(token, JWT_SECRET) as TokenPayload;
+    const payload = jwt.verify(token, getJwtSecret()) as TokenPayload;
     return await prisma.user.findUnique({
       where: { id: payload.userId },
       select: { id: true, email: true, name: true, role: true },
