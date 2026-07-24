@@ -29,6 +29,12 @@ const state = { view: "home", params: {} };
 const currentUser = () => db.get("session", null);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
+async function hashPassword(pass) {
+  const data = new TextEncoder().encode(pass);
+  const digest = await crypto.subtle.digest("SHA-256", data);
+  return Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
 function go(view, params = {}) { state.view = view; state.params = params; render(); window.scrollTo(0, 0); }
 
 function logout() { localStorage.removeItem("session"); go("home"); }
@@ -192,7 +198,7 @@ const views = {
   },
 };
 
-function doRegister() {
+async function doRegister() {
   const name = document.getElementById("r-name").value.trim();
   const email = document.getElementById("r-email").value.trim().toLowerCase();
   const pass = document.getElementById("r-pass").value;
@@ -202,17 +208,18 @@ function doRegister() {
   if (pass.length < 6) { err.innerHTML = `<p class="error">كلمة المرور يجب أن تكون 6 أحرف على الأقل</p>`; return; }
   const users = db.get("users", []);
   if (users.some((u) => u.email === email)) { err.innerHTML = `<p class="error">البريد الإلكتروني مستخدم بالفعل</p>`; return; }
-  users.push({ name, email, pass, role });
+  users.push({ name, email, passHash: await hashPassword(pass), role });
   db.set("users", users);
   db.set("session", { name, email, role });
   go("home");
 }
 
-function doLogin() {
+async function doLogin() {
   const email = document.getElementById("l-email").value.trim().toLowerCase();
   const pass = document.getElementById("l-pass").value;
   const err = document.getElementById("l-error");
-  const user = db.get("users", []).find((u) => u.email === email && u.pass === pass);
+  const passHash = await hashPassword(pass);
+  const user = db.get("users", []).find((u) => u.email === email && u.passHash === passHash);
   if (!user) { err.innerHTML = `<p class="error">البريد الإلكتروني أو كلمة المرور غير صحيحة</p>`; return; }
   db.set("session", { name: user.name, email: user.email, role: user.role });
   go("home");
