@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Job in Algeria</string>
+    <string name="title_activity_main">Job in Algeria</string>
+    <string name="package_name">dz.jobinalgeria.app</string>
+    <string name="custom_url_scheme">dz.jobinalgeria.app</string>
+</resources>

@@ -1,7 +1,14 @@
 import "dotenv/config";
+import path from "path";
 import { PrismaClient } from "../src/generated/prisma/client";
 
-const prisma = new PrismaClient();
+// Resolve relative SQLite paths against the prisma/ directory, matching
+// both the Prisma CLI and src/lib/prisma.ts.
+const url = process.env.DATABASE_URL?.startsWith("file:./")
+  ? `file:${path.join(__dirname, process.env.DATABASE_URL.slice("file:./".length))}`
+  : process.env.DATABASE_URL;
+
+const prisma = new PrismaClient({ datasourceUrl: url });
 
 const jobs = [
   {
