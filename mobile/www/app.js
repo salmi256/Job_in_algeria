@@ -29,6 +29,11 @@ const I18N = {
     requiredFields: "جميع الحقول المطلوبة (*) يجب ملؤها", postBtn: "نشر الوظيفة",
     myApps: "طلبات التوظيف الخاصة بي", noApps: "لم تتقدم لأي وظيفة بعد.", browseJobs: "تصفح الوظائف",
     appliedOn: "تاريخ التقديم: ", withCv: "📎 CV",
+    welcomeTitle: "Job in Algeria", welcomeSub: "آلاف الوظائف في جميع ولايات الوطن — ابدأ مسيرتك المهنية اليوم",
+    continueGoogle: "المتابعة بحساب Google", continueGuest: "المتابعة كزائر",
+    settings: "الإعدادات", account: "الحساب", appearance: "المظهر", themeSystem: "حسب إعدادات الهاتف",
+    themeLight: "فاتح", themeDark: "داكن", languageL: "اللغة", about: "حول التطبيق",
+    version: "الإصدار", demoVersion: "نسخة تجريبية — البيانات محلية", notLoggedIn: "لم تسجل الدخول بعد",
     types: { "full-time": "دوام كامل", "part-time": "دوام جزئي", contract: "عقد محدد", internship: "تربص", remote: "عن بعد" },
   },
   fr: {
@@ -56,6 +61,11 @@ const I18N = {
     requiredFields: "Tous les champs requis (*) doivent être remplis", postBtn: "Publier l'offre",
     myApps: "Mes candidatures", noApps: "Vous n'avez encore postulé à aucune offre.", browseJobs: "Parcourir les offres",
     appliedOn: "Date de candidature : ", withCv: "📎 CV",
+    welcomeTitle: "Job in Algeria", welcomeSub: "Des milliers d'offres dans toutes les wilayas — lancez votre carrière aujourd'hui",
+    continueGoogle: "Continuer avec Google", continueGuest: "Continuer en tant qu'invité",
+    settings: "Paramètres", account: "Compte", appearance: "Apparence", themeSystem: "Selon le téléphone",
+    themeLight: "Clair", themeDark: "Sombre", languageL: "Langue", about: "À propos",
+    version: "Version", demoVersion: "Version démo — données locales", notLoggedIn: "Non connecté",
     types: { "full-time": "Temps plein", "part-time": "Temps partiel", contract: "CDD", internship: "Stage", remote: "Télétravail" },
   },
   en: {
@@ -83,6 +93,11 @@ const I18N = {
     requiredFields: "All required fields (*) must be filled", postBtn: "Post job",
     myApps: "My job applications", noApps: "You haven't applied to any job yet.", browseJobs: "Browse jobs",
     appliedOn: "Applied on: ", withCv: "📎 CV",
+    welcomeTitle: "Job in Algeria", welcomeSub: "Thousands of jobs across all wilayas — start your career today",
+    continueGoogle: "Continue with Google", continueGuest: "Continue as guest",
+    settings: "Settings", account: "Account", appearance: "Appearance", themeSystem: "Match phone settings",
+    themeLight: "Light", themeDark: "Dark", languageL: "Language", about: "About",
+    version: "Version", demoVersion: "Demo version — local data", notLoggedIn: "Not signed in",
     types: { "full-time": "Full-time", "part-time": "Part-time", contract: "Contract", internship: "Internship", remote: "Remote" },
   },
 };
@@ -113,7 +128,17 @@ if (!I18N[lang]) lang = "ar";
 const t = (key) => I18N[lang][key] ?? key;
 const typeName = (jobType) => I18N[lang].types[jobType] || jobType;
 
-const state = { view: "home", params: {} };
+let theme = db.get("theme", "system");
+const darkQuery = window.matchMedia("(prefers-color-scheme: dark)");
+function applyTheme() {
+  const dark = theme === "dark" || (theme === "system" && darkQuery.matches);
+  document.documentElement.dataset.theme = dark ? "dark" : "light";
+}
+darkQuery.addEventListener("change", applyTheme);
+function setTheme(newTheme) { theme = newTheme; db.set("theme", theme); applyTheme(); render(); }
+
+const state = { view: currentUserInit() ? "home" : "welcome", params: {} };
+function currentUserInit() { try { return JSON.parse(localStorage.getItem("session")); } catch { return null; } }
 let pendingCv = null;
 const currentUser = () => db.get("session", null);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -140,7 +165,23 @@ function go(view, params = {}) {
   window.scrollTo(0, 0);
 }
 
-function logout() { localStorage.removeItem("session"); go("home"); }
+function logout() { localStorage.removeItem("session"); go("welcome"); }
+
+async function googleLogin() {
+  const email = "demo.google@gmail.com";
+  const users = db.get("users", []);
+  let user = users.find((u) => u.email === email);
+  if (!user) {
+    user = { name: "Google Demo", email, passHash: await hashPassword("google-demo-" + Date.now()), role: "seeker", google: true };
+    users.push(user);
+    db.set("users", users);
+  }
+  db.set("session", { name: user.name, email: user.email, role: user.role });
+  showSuccessOverlay();
+  setTimeout(() => go("home"), 500);
+}
+
+const GOOGLE_SVG = `<svg class="g-logo" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>`;
 
 function showSuccessOverlay() {
   const el = document.createElement("div");
@@ -197,6 +238,58 @@ function onCvChange(input) {
 }
 
 const views = {
+  welcome() {
+    return `<div class="welcome">
+      <div class="big-badge">💼</div>
+      <h1>${t("welcomeTitle")}</h1>
+      <p>${t("welcomeSub")}</p>
+      <div class="actions">
+        <button class="btn btn-block btn-white" onclick="go('register')">${t("createAccount")}</button>
+        <button class="btn btn-block btn-ghost" onclick="go('login')">${t("login")}</button>
+        <button class="btn btn-block btn-google" onclick="googleLogin()">${GOOGLE_SVG} ${t("continueGoogle")}</button>
+        <a class="guest" onclick="go('home')">${t("continueGuest")}</a>
+      </div>
+    </div>`;
+  },
+
+  settings() {
+    const user = currentUser();
+    const themeRow = (value, icon, label) => `<div class="settings-row" onclick="setTheme('${value}')">
+      <span class="ic">${icon}</span><span class="grow">${label}</span>${theme === value ? `<span class="checkmark">✓</span>` : ""}
+    </div>`;
+    const langRow = (value, label) => `<div class="settings-row" onclick="setLang('${value}')">
+      <span class="ic">🌐</span><span class="grow">${label}</span>${lang === value ? `<span class="checkmark">✓</span>` : ""}
+    </div>`;
+    return `<div class="container">
+      <h2>${t("settings")}</h2>
+      <p class="settings-title">${t("account")}</p>
+      <div class="settings-group stagger">
+        ${user
+          ? `<div class="settings-row"><span class="ic">👤</span><div class="grow"><div>${esc(user.name)}</div><div class="sub">${esc(user.email)}</div></div></div>`
+          : `<div class="settings-row" onclick="go('login')"><span class="ic">👤</span><span class="grow">${t("notLoggedIn")}</span><span class="chev">›</span></div>`}
+        ${user ? `<div class="settings-row" onclick="go('dashboard')"><span class="ic">📄</span><span class="grow">${t("navApps")}</span><span class="chev">›</span></div>` : ""}
+      </div>
+      <p class="settings-title">${t("appearance")}</p>
+      <div class="settings-group stagger" style="animation-delay:.08s">
+        ${themeRow("system", "📱", t("themeSystem"))}
+        ${themeRow("light", "☀️", t("themeLight"))}
+        ${themeRow("dark", "🌙", t("themeDark"))}
+      </div>
+      <p class="settings-title">${t("languageL")}</p>
+      <div class="settings-group stagger" style="animation-delay:.16s">
+        ${langRow("ar", "العربية")}
+        ${langRow("fr", "Français")}
+        ${langRow("en", "English")}
+      </div>
+      <p class="settings-title">${t("about")}</p>
+      <div class="settings-group stagger" style="animation-delay:.24s">
+        <div class="settings-row"><span class="ic">ℹ️</span><span class="grow">${t("version")}</span><span class="muted">0.2.0</span></div>
+        <div class="settings-row"><span class="ic">🧪</span><span class="grow">${t("demoVersion")}</span></div>
+      </div>
+      ${user ? `<button class="btn btn-block btn-danger stagger" style="animation-delay:.3s" onclick="logout()">${t("navLogout")}</button>` : ""}
+    </div>`;
+  },
+
   home() {
     const jobs = db.get("jobs", []).slice(0, 6);
     return `
@@ -390,19 +483,17 @@ function postJob() {
 
 function render(animate = false) {
   const user = currentUser();
-  const langSelect = `<select class="lang-select" onchange="setLang(this.value)">
-    <option value="ar" ${lang === "ar" ? "selected" : ""}>العربية</option>
-    <option value="fr" ${lang === "fr" ? "selected" : ""}>Français</option>
-    <option value="en" ${lang === "en" ? "selected" : ""}>English</option>
-  </select>`;
+  const isWelcome = state.view === "welcome";
+  document.getElementById("header").style.display = isWelcome ? "none" : "";
+  document.getElementById("footer").style.display = isWelcome ? "none" : "";
+  const gear = `<button class="icon-btn" onclick="go('settings')" aria-label="${t("settings")}">⚙️</button>`;
   document.getElementById("nav").innerHTML = (user
     ? `<a class="link" onclick="go('jobs')">${t("navJobs")}</a>
        <a class="link" onclick="go('post')">${t("navPost")}</a>
-       <a class="link" onclick="go('dashboard')">${t("navApps")}</a>
-       <button class="btn btn-outline" onclick="logout()">${t("navLogout")}</button>`
+       <a class="link" onclick="go('dashboard')">${t("navApps")}</a>`
     : `<a class="link" onclick="go('jobs')">${t("navJobs")}</a>
        <button class="btn btn-outline" onclick="go('login')">${t("navLogin")}</button>
-       <button class="btn btn-primary" onclick="go('register')">${t("navRegister")}</button>`) + langSelect;
+       <button class="btn btn-primary" onclick="go('register')">${t("navRegister")}</button>`) + gear;
   document.querySelector(".demo-banner").textContent = t("demoBanner");
   document.getElementById("footer").textContent = t("footer");
   const app = document.getElementById("app");
@@ -416,4 +507,5 @@ function render(animate = false) {
 
 document.documentElement.lang = lang;
 document.documentElement.dir = I18N[lang].dir;
+applyTheme();
 render(true);
